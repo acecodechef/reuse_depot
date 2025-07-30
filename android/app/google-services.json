@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "321843783524",
+    "project_id": "reusedepot-f7394",
+    "storage_bucket": "reusedepot-f7394.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:321843783524:android:680fb2c586465d8c667c71",
+        "android_client_info": {
+          "package_name": "com.example.reuse_depot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkPtqmgZb5Hup9O_3loeAtJkHFGhNDpls"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
