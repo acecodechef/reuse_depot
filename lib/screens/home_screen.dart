@@ -17,12 +17,62 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _locationFilterController =
+      TextEditingController();
   String _searchQuery = '';
+  String _locationFilter = '';
+  List<String> _selectedCategories = [];
+  bool _showAvailableOnly = true;
+  bool _showFilters = false;
+
+  final List<String> _allCategories = [
+    'Wood',
+    'Tile',
+    'Cabinets',
+    'Fixtures',
+    'Paint',
+    'Tools',
+    'Other',
+  ];
 
   @override
   void dispose() {
     _searchController.dispose();
+    _locationFilterController.dispose();
     super.dispose();
+  }
+
+  void _toggleCategory(String category) {
+    setState(() {
+      if (_selectedCategories.contains(category)) {
+        _selectedCategories.remove(category);
+      } else {
+        _selectedCategories.add(category);
+      }
+    });
+  }
+
+  void _toggleAvailabilityFilter() {
+    setState(() {
+      _showAvailableOnly = !_showAvailableOnly;
+    });
+  }
+
+  void _toggleFiltersVisibility() {
+    setState(() {
+      _showFilters = !_showFilters;
+    });
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _selectedCategories = [];
+      _showAvailableOnly = true;
+      _searchQuery = '';
+      _locationFilter = '';
+      _searchController.clear();
+      _locationFilterController.clear();
+    });
   }
 
   @override
@@ -31,6 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Reuse Depot'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_alt),
+            onPressed: _toggleFiltersVisibility,
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
@@ -91,6 +145,90 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
+          if (_showFilters) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Filters',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _resetFilters,
+                        child: Text('Reset'),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Availability',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SwitchListTile(
+                    title: Text('Available only'),
+                    value: _showAvailableOnly,
+                    onChanged: (value) => _toggleAvailabilityFilter(),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Location',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextField(
+                    controller: _locationFilterController,
+                    decoration: InputDecoration(
+                      hintText: 'Filter by location...',
+                      prefixIcon: Icon(Icons.location_on),
+                      suffixIcon:
+                          _locationFilter.isNotEmpty
+                              ? IconButton(
+                                icon: Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() {
+                                    _locationFilter = '';
+                                    _locationFilterController.clear();
+                                  });
+                                },
+                              )
+                              : null,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _locationFilter = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Categories',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Wrap(
+                    spacing: 8.0,
+                    children:
+                        _allCategories.map((category) {
+                          return FilterChip(
+                            label: Text(category),
+                            selected: _selectedCategories.contains(category),
+                            onSelected: (selected) => _toggleCategory(category),
+                          );
+                        }).toList(),
+                  ),
+                  SizedBox(height: 8),
+                ],
+              ),
+            ),
+            Divider(),
+          ],
           Expanded(
             child: StreamBuilder<List<MaterialListing>>(
               stream: Provider.of<DatabaseService>(context).getMaterials(),
@@ -105,23 +243,66 @@ class _HomeScreenState extends State<HomeScreen> {
                   return const Center(child: Text('No materials available'));
                 }
 
-                final filteredMaterials =
-                    _searchQuery.isEmpty
-                        ? snapshot.data!
-                        : snapshot.data!.where((material) {
-                          return material.title.toLowerCase().contains(
-                                _searchQuery.toLowerCase(),
-                              ) ||
-                              material.description.toLowerCase().contains(
-                                _searchQuery.toLowerCase(),
-                              ) ||
-                              material.category.toLowerCase().contains(
-                                _searchQuery.toLowerCase(),
-                              );
-                        }).toList();
+                List<MaterialListing> filteredMaterials = snapshot.data!;
+
+                // Apply search filter
+                if (_searchQuery.isNotEmpty) {
+                  filteredMaterials =
+                      filteredMaterials.where((material) {
+                        return material.title.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            ) ||
+                            material.description.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            ) ||
+                            material.category.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            );
+                      }).toList();
+                }
+
+                // Apply location filter
+                if (_locationFilter.isNotEmpty) {
+                  filteredMaterials =
+                      filteredMaterials.where((material) {
+                        return material.location.toLowerCase().contains(
+                          _locationFilter.toLowerCase(),
+                        );
+                      }).toList();
+                }
+
+                // Apply category filter
+                if (_selectedCategories.isNotEmpty) {
+                  filteredMaterials =
+                      filteredMaterials.where((material) {
+                        return _selectedCategories.contains(material.category);
+                      }).toList();
+                }
+
+                // Apply availability filter
+                if (_showAvailableOnly) {
+                  filteredMaterials =
+                      filteredMaterials.where((material) {
+                        return material.isAvailable;
+                      }).toList();
+                }
 
                 if (filteredMaterials.isEmpty) {
-                  return const Center(child: Text('No results found'));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('No results found'),
+                        SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _resetFilters,
+                          child: Text('Reset filters'),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 return ListView.builder(
@@ -174,8 +355,37 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           title: Text(material.title),
-                          subtitle: Text(material.description),
-                          trailing: Text(material.category),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(material.description),
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(Icons.category, size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    material.category,
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.location_on, size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    material.location,
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          trailing:
+                              material.isAvailable
+                                  ? Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                  )
+                                  : Icon(Icons.cancel, color: Colors.red),
                         ),
                       ),
                     );

@@ -24,9 +24,11 @@ class _AddListingScreenState extends State<AddListingScreen> {
   bool _isLoading = false;
 
   final List<String> _categories = [
-    'Building Materials',
-    'Furniture',
-    'Electronics',
+    'Wood',
+    'Tile',
+    'Cabinets',
+    'Fixtures',
+    'Paint',
     'Tools',
     'Other',
   ];
