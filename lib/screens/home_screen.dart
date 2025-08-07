@@ -7,6 +7,7 @@ import 'package:reuse_depot/services/database_service.dart';
 import 'package:reuse_depot/services/auth_service.dart';
 import 'package:reuse_depot/screens/add_listing_screen.dart';
 import 'package:reuse_depot/screens/listing_detail_screen.dart';
+import 'package:reuse_depot/screens/conversations_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -91,6 +92,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => AddListingScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.message),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ConversationsListScreen(),
+                ),
               );
             },
           ),

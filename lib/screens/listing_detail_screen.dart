@@ -4,6 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:reuse_depot/models/material.dart';
+import 'package:provider/provider.dart';
+import 'package:reuse_depot/screens/conversation_screen.dart';
+import 'package:reuse_depot/services/auth_service.dart';
 
 class ListingDetailScreen extends StatelessWidget {
   final MaterialListing material;
@@ -11,7 +14,53 @@ class ListingDetailScreen extends StatelessWidget {
   const ListingDetailScreen({Key? key, required this.material})
     : super(key: key);
 
-  Future<void> _contactSeller(BuildContext context) async {
+  Future<void> _showContactOptions(BuildContext context) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    await showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Contact Seller',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 16),
+                ListTile(
+                  leading: Icon(Icons.email),
+                  title: Text('Send Email'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _contactViaEmail(context);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.phone),
+                  title: Text('Call Seller'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _contactViaPhone(context);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.message),
+                  title: Text('Message in App'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _contactViaMessage(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Future<void> _contactViaEmail(BuildContext context) async {
     final url = 'mailto:seller@example.com?subject=Regarding ${material.title}';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
@@ -20,6 +69,31 @@ class ListingDetailScreen extends StatelessWidget {
         const SnackBar(content: Text('Could not launch email app')),
       );
     }
+  }
+
+  Future<void> _contactViaPhone(BuildContext context) async {
+    final url = 'tel:+1234567890';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not launch phone app')),
+      );
+    }
+  }
+
+  void _contactViaMessage(BuildContext context) {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ConversationScreen(
+              receiverId: material.userId,
+              listing: material,
+            ),
+      ),
+    );
   }
 
   @override
@@ -110,7 +184,7 @@ class ListingDetailScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ElevatedButton(
-            onPressed: () => _contactSeller(context),
+            onPressed: () => _showContactOptions(context),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
             ),
