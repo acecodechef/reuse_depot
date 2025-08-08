@@ -1,127 +1,161 @@
-// screens/conversations_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:reuse_depot/models/message.dart';
-import 'package:reuse_depot/models/material.dart';
 import 'package:reuse_depot/services/auth_service.dart';
 import 'package:reuse_depot/services/database_service.dart';
 import 'package:reuse_depot/screens/conversation_screen.dart';
-import 'package:intl/intl.dart';
 
-class ConversationsListScreen extends StatelessWidget {
+class ConversationsListScreen extends StatefulWidget {
   const ConversationsListScreen({Key? key}) : super(key: key);
+
+  @override
+  _ConversationsListScreenState createState() =>
+      _ConversationsListScreenState();
+}
+
+class _ConversationsListScreenState extends State<ConversationsListScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Map<String, String> _userNameCache = {};
+
+  @override
+  void dispose() {
+    _userNameCache.clear();
+    super.dispose();
+  }
+
+  Future<String> _getUserName(String userId) async {
+    if (_userNameCache.containsKey(userId)) {
+      return _userNameCache[userId]!;
+    }
+
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      final name =
+          doc.data()?['name'] ??
+          doc.data()?['email']?.split('@')[0] ??
+          'Unknown';
+      _userNameCache[userId] = name;
+      return name;
+    } catch (e) {
+      return 'Unknown';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
+    final currentUserId = auth.currentUser!.uid;
     final db = Provider.of<DatabaseService>(context);
-    final firestore = FirebaseFirestore.instance;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Messages')),
-      body: StreamBuilder<List<Message>>(
-        stream: db.getUserConversations(auth.currentUser?.uid ?? ''),
+      appBar: AppBar(
+        title: const Text('Messages'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => setState(() {}),
+          ),
+        ],
+      ),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: db.getUserConversations(currentUserId),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error loading conversations'));
+            print(snapshot.error);
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final messages = snapshot.data ?? [];
+          final conversations = snapshot.data ?? [];
 
-          if (messages.isEmpty) {
-            return Center(child: Text('No conversations yet'));
+          if (conversations.isEmpty) {
+            return const Center(child: Text('No conversations yet'));
           }
-
-          // Filter out messages with empty listingId
-          final validMessages =
-              messages.where((m) => m.listingId.isNotEmpty).toList();
 
           return ListView.builder(
-            itemCount: validMessages.length,
+            itemCount: conversations.length,
             itemBuilder: (context, index) {
-              final message = validMessages[index];
+              final conversation = conversations[index];
+              final lastMessage = conversation['lastMessage'] as Message;
+              final unreadCount = conversation['unreadCount'] as int;
               final otherUserId =
-                  message.receiverId == auth.currentUser?.uid
-                      ? message.senderId
-                      : message.receiverId;
+                  lastMessage.senderId == currentUserId
+                      ? lastMessage.receiverId
+                      : lastMessage.senderId;
 
-              if (otherUserId.isEmpty) {
-                return ListTile(title: Text('Invalid conversation'));
-              }
+              return FutureBuilder<String>(
+                future: _getUserName(otherUserId),
+                builder: (context, nameSnapshot) {
+                  final userName = nameSnapshot.data ?? 'Loading...';
 
-              return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future:
-                    firestore
-                        .collection('materials')
-                        .doc(message.listingId)
-                        .get(),
-                builder: (context, listingSnapshot) {
-                  if (!listingSnapshot.hasData) {
-                    return ListTile(title: Text('Loading listing...'));
-                  }
-
-                  final listingData = listingSnapshot.data?.data();
-                  if (listingData == null) {
-                    return ListTile(title: Text('Deleted listing'));
-                  }
-
-                  final listing = MaterialListing.fromMap(
-                    listingData,
-                    message.listingId,
-                  );
-
-                  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    future:
-                        firestore.collection('users').doc(otherUserId).get(),
-                    builder: (context, userSnapshot) {
-                      if (!userSnapshot.hasData) {
-                        return ListTile(title: Text('Loading user...'));
-                      }
-
-                      final userData = userSnapshot.data?.data();
-                      final userName = userData?['name'] ?? 'Unknown User';
-                      final userEmail = userData?['email'] ?? '';
-
-                      return ListTile(
-                        leading: CircleAvatar(
-                          child: Text(userName.isNotEmpty ? userName[0] : '?'),
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: Text(
+                        userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(
+                      userName,
+                      style: TextStyle(
+                        fontWeight: unreadCount > 0 ? FontWeight.bold : null,
+                      ),
+                    ),
+                    subtitle: Text(
+                      lastMessage.content,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          DateFormat('MM/dd').format(lastMessage.timestamp),
+                          style: const TextStyle(fontSize: 12),
                         ),
-                        title: Text(userName),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${listing.title}',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                        if (unreadCount > 0)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
                             ),
-                            Text(
-                              message.content,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
                             ),
-                          ],
+                            child: Text(
+                              unreadCount > 9 ? '9+' : unreadCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                      ],
+                    ),
+                    onTap: () async {
+                      await db.markMessagesAsRead(currentUserId, otherUserId);
+                      if (!mounted) return;
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => ConversationScreen(
+                                otherUserId: otherUserId,
+                                otherUserName: userName,
+                              ),
                         ),
-                        trailing: Text(
-                          DateFormat('MMM d').format(message.timestamp),
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => ConversationScreen(
-                                    receiverId: otherUserId,
-                                    listing: listing,
-                                  ),
-                            ),
-                          );
-                        },
                       );
                     },
                   );

@@ -6,7 +6,7 @@ import 'package:reuse_depot/services/database_service.dart';
 import 'package:reuse_depot/services/auth_service.dart';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import 'dart:async';
 
 class AddListingScreen extends StatefulWidget {

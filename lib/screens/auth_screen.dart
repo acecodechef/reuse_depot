@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:reuse_depot/screens/home_screen.dart';
 import 'package:reuse_depot/services/auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
-  @override
   const AuthScreen({Key? key}) : super(key: key);
+
+  @override
   _AuthScreenState createState() => _AuthScreenState();
 }
 
@@ -13,6 +13,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLogin = true;
   bool _isLoading = false;
 
@@ -25,19 +26,21 @@ class _AuthScreenState extends State<AuthScreen> {
       if (_isLogin) {
         await auth.signIn(_emailController.text, _passwordController.text);
       } else {
-        await auth.register(_emailController.text, _passwordController.text);
-        // Navigate to home screen after successful registration
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
+        await auth.register(
+          _emailController.text,
+          _passwordController.text,
+          _nameController.text,
         );
+        // Navigation is now handled by AuthWrapper in main.dart
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -45,57 +48,74 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Reuse Depot'),
+        title: const Text('Reuse Depot'),
         automaticallyImplyLeading: false,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator:
-                    (value) => value!.isEmpty ? 'Please enter email' : null,
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator:
-                    (value) => value!.isEmpty ? 'Please enter password' : null,
-              ),
-              SizedBox(height: 24),
-              if (_isLoading)
-                CircularProgressIndicator()
-              else
-                Column(
-                  children: [
-                    ElevatedButton(
-                      onPressed: _submit,
-                      child: Text(_isLogin ? 'Login' : 'Register'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 50),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() => _isLogin = !_isLogin);
-                      },
-                      child: Text(
-                        _isLogin
-                            ? 'Create new account'
-                            : 'I already have an account',
-                      ),
-                    ),
-                  ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator:
+                      (value) => value!.isEmpty ? 'Please enter email' : null,
                 ),
-            ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                  obscureText: true,
+                  validator:
+                      (value) =>
+                          value!.isEmpty ? 'Please enter password' : null,
+                ),
+                if (!_isLogin) const SizedBox(height: 16),
+                if (!_isLogin)
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    validator:
+                        (value) =>
+                            value!.isEmpty ? 'Please enter your name' : null,
+                  ),
+                const SizedBox(height: 24),
+                if (_isLoading)
+                  const CircularProgressIndicator()
+                else
+                  Column(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _submit,
+                        child: Text(_isLogin ? 'Login' : 'Register'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _isLogin = !_isLogin;
+                            if (_isLogin) {
+                              _nameController.clear();
+                            }
+                          });
+                        },
+                        child: Text(
+                          _isLogin
+                              ? 'Create new account'
+                              : 'I already have an account',
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -106,6 +126,7 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 }

@@ -48,54 +48,35 @@ class DatabaseService {
   }
 
   // Message related methods
+  Stream<int> getTotalUnreadCount(String userId) {
+    return _firestore
+        .collection('messages')
+        .where('receiverId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   Future<void> sendMessage(Message message) async {
     await _firestore.collection('messages').add(message.toMap());
   }
 
-  Stream<List<Message>> getConversation(
-    String userId1,
-    String userId2,
-    String listingId,
-  ) {
-    try {
-      return _firestore
-          .collection('messages')
-          .where('listingId', isEqualTo: listingId)
-          .where(
-            Filter.or(
-              Filter.and(
-                Filter('senderId', isEqualTo: userId1),
-                Filter('receiverId', isEqualTo: userId2),
-              ),
-              Filter.and(
-                Filter('senderId', isEqualTo: userId2),
-                Filter('receiverId', isEqualTo: userId1),
-              ),
-            ),
-          )
-          .orderBy('timestamp', descending: false)
-          .snapshots()
-          .handleError((error) {
-            print("Error fetching messages: $error");
-            return Stream.value([]);
-          })
-          .map(
-            (snapshot) =>
-                snapshot.docs
-                    .map((doc) => Message.fromMap(doc.data(), doc.id))
-                    .toList(),
-          );
-    } catch (e) {
-      print("Error in getConversation: $e");
-      return Stream.value([]);
-    }
-  }
-
-  Stream<List<Message>> getUserConversations(String userId) {
+  Stream<List<Message>> getConversation(String userId1, String userId2) {
     return _firestore
         .collection('messages')
-        .where('senderId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
+        .where(
+          Filter.or(
+            Filter.and(
+              Filter('senderId', isEqualTo: userId1),
+              Filter('receiverId', isEqualTo: userId2),
+            ),
+            Filter.and(
+              Filter('senderId', isEqualTo: userId2),
+              Filter('receiverId', isEqualTo: userId1),
+            ),
+          ),
+        )
+        .orderBy('timestamp', descending: false)
         .snapshots()
         .map(
           (snapshot) =>
@@ -105,12 +86,55 @@ class DatabaseService {
         );
   }
 
-  Future<void> markMessagesAsRead(String conversationId, String userId) async {
+  // database_service.dart
+  Stream<List<Map<String, dynamic>>> getUserConversations(String userId) {
+    return _firestore
+        .collection('messages')
+        .where(
+          Filter.or(
+            Filter('senderId', isEqualTo: userId),
+            Filter('receiverId', isEqualTo: userId),
+          ),
+        )
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          // Group by the other user ID
+          final conversations = <String, Map<String, dynamic>>{};
+
+          for (final doc in snapshot.docs) {
+            final message = Message.fromMap(doc.data(), doc.id);
+            final otherUserId =
+                message.senderId == userId
+                    ? message.receiverId
+                    : message.senderId;
+
+            if (!conversations.containsKey(otherUserId)) {
+              conversations[otherUserId] = {
+                'lastMessage': message,
+                'unreadCount': 0,
+              };
+            }
+
+            // Count unread messages where current user is receiver
+            if (message.receiverId == userId && !message.isRead) {
+              conversations[otherUserId]!['unreadCount'] += 1;
+            }
+          }
+
+          return conversations.values.toList();
+        });
+  }
+
+  Future<void> markMessagesAsRead(
+    String currentUserId,
+    String otherUserId,
+  ) async {
     final query =
         await _firestore
             .collection('messages')
-            .where('senderId', isEqualTo: conversationId)
-            .where('receiverId', isEqualTo: userId)
+            .where('senderId', isEqualTo: otherUserId)
+            .where('receiverId', isEqualTo: currentUserId)
             .where('isRead', isEqualTo: false)
             .get();
 
@@ -119,5 +143,14 @@ class DatabaseService {
       batch.update(doc.reference, {'isRead': true});
     }
     await batch.commit();
+  }
+
+  Stream<int> getUnreadMessageCount(String userId) {
+    return _firestore
+        .collection('messages')
+        .where('receiverId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.size);
   }
 }

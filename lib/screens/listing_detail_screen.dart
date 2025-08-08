@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:reuse_depot/models/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:reuse_depot/screens/conversation_screen.dart';
-import 'package:reuse_depot/services/auth_service.dart';
 
 class ListingDetailScreen extends StatelessWidget {
   final MaterialListing material;
@@ -15,7 +14,11 @@ class ListingDetailScreen extends StatelessWidget {
     : super(key: key);
 
   Future<void> _showContactOptions(BuildContext context) async {
-    final auth = Provider.of<AuthService>(context, listen: false);
+    final db = FirebaseFirestore.instance;
+
+    // Get seller's name
+    final sellerDoc = await db.collection('users').doc(material.userId).get();
+    final sellerName = sellerDoc.data()?['name'] ?? 'Seller';
 
     await showModalBottomSheet(
       context: context,
@@ -26,7 +29,7 @@ class ListingDetailScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Contact Seller',
+                  'Contact $sellerName',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 16),
@@ -51,7 +54,7 @@ class ListingDetailScreen extends StatelessWidget {
                   title: Text('Message in App'),
                   onTap: () {
                     Navigator.pop(context);
-                    _contactViaMessage(context);
+                    _contactViaMessage(context, sellerName);
                   },
                 ),
               ],
@@ -82,15 +85,14 @@ class ListingDetailScreen extends StatelessWidget {
     }
   }
 
-  void _contactViaMessage(BuildContext context) {
-    final auth = Provider.of<AuthService>(context, listen: false);
+  void _contactViaMessage(BuildContext context, String sellerName) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
             (context) => ConversationScreen(
-              receiverId: material.userId,
-              listing: material,
+              otherUserId: material.userId,
+              otherUserName: sellerName,
             ),
       ),
     );

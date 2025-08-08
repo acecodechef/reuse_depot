@@ -7,8 +7,8 @@ class Message {
   final String receiverId;
   final String content;
   final DateTime timestamp;
-  final String listingId;
   final bool isRead;
+  final String? listingId;
 
   Message({
     required this.id,
@@ -16,8 +16,8 @@ class Message {
     required this.receiverId,
     required this.content,
     required this.timestamp,
-    required this.listingId,
     this.isRead = false,
+    this.listingId,
   });
 
   factory Message.fromMap(Map<String, dynamic> data, String id) {

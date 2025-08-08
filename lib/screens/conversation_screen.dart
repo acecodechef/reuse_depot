@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reuse_depot/models/message.dart';
-import 'package:reuse_depot/models/material.dart';
 import 'package:reuse_depot/services/auth_service.dart';
 import 'package:reuse_depot/services/database_service.dart';
 import 'package:intl/intl.dart';
 
 class ConversationScreen extends StatefulWidget {
-  final String receiverId;
-  final MaterialListing listing;
+  final String otherUserId;
+  final String otherUserName;
 
   const ConversationScreen({
-    required this.receiverId,
-    required this.listing,
+    required this.otherUserId,
+    required this.otherUserName,
     Key? key,
   }) : super(key: key);
 
@@ -25,10 +24,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final ScrollController _scrollController = ScrollController();
 
   @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    // Mark messages as read when opening conversation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<DatabaseService>(context, listen: false).markMessagesAsRead(
+        Provider.of<AuthService>(context, listen: false).currentUser!.uid,
+        widget.otherUserId,
+      );
+    });
   }
 
   void _sendMessage() async {
@@ -40,15 +44,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final message = Message(
       id: '',
       senderId: auth.currentUser!.uid,
-      receiverId: widget.receiverId,
+      receiverId: widget.otherUserId,
       content: _messageController.text.trim(),
       timestamp: DateTime.now(),
-      listingId: widget.listing.id,
     );
 
     await db.sendMessage(message);
     _messageController.clear();
-    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -69,15 +71,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final db = Provider.of<DatabaseService>(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Conversation')),
+      appBar: AppBar(title: Text(widget.otherUserName)),
       body: Column(
         children: [
           Expanded(
             child: StreamBuilder<List<Message>>(
               stream: db.getConversation(
                 auth.currentUser!.uid,
-                widget.receiverId,
-                widget.listing.id,
+                widget.otherUserId,
               ),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
