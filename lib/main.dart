@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:reuse_depot/screens/auth_screen.dart';
 import 'package:reuse_depot/screens/home_screen.dart';
+import 'package:reuse_depot/screens/admin/admin_home_screen.dart';
 import 'package:reuse_depot/services/auth_service.dart';
 import 'package:reuse_depot/services/database_service.dart';
 import 'firebase_options.dart';
@@ -54,6 +55,10 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
+          // Check admin status via email (or better, a field in Firestore)
+          if (snapshot.data!.email == 'admin@reusedepot.com') {
+            return const AdminHomeScreen();
+          }
           return const HomeScreen();
         }
 

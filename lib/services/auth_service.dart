@@ -8,53 +8,42 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.userChanges();
 
-  // Add this method to ensure user documents are created
   Future<void> _ensureUserDocument(User user) async {
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
-      final docExists = (await userDoc.get()).exists;
+      final isAdmin =
+          user.email == 'admin@reusedepot.com'; // Compare email here
 
-      if (!docExists) {
-        await userDoc.set({
-          'uid': user.uid,
-          'email': user.email,
-          'name': user.displayName ?? 'New User',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        print('✅ User document created for ${user.uid}');
-      } else {
-        print('ℹ️ User document already exists for ${user.uid}');
-      }
-    } catch (e, stack) {
-      print('❌ Error creating user document: $e');
-      print(stack);
+      await userDoc.set({
+        'uid': user.uid,
+        'email': user.email,
+        'name': user.displayName ?? 'New User',
+        'createdAt': FieldValue.serverTimestamp(),
+        'isAdmin': isAdmin, // Store as boolean
+      }, SetOptions(merge: true)); // Merge to avoid overwriting
+    } catch (e) {
+      print('Error ensuring user document: $e');
       rethrow;
     }
   }
 
   Future<User?> register(String email, String password, String name) async {
-    print("0000000000000000000000000000000000000000000000000000");
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final user = userCredential.user;
+      if (user == null) throw Exception('User creation failed');
 
-    // 1. Create user in Firebase Auth
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    print("99999999999999999999999999999999999999999");
-    final user = userCredential.user;
-    if (user == null) throw Exception('User creation failed');
-    print("1111111111111111111111111111111111111111111111111111111111");
-    // 2. Update display name and reload
-    await Future.wait([user.updateDisplayName(name), user.reload()]);
-    print("222222222222222222222222222222222222222222222222222222");
-    // 3. Force token refresh
-    await user.getIdToken(true);
-    print("ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
+      await Future.wait([user.updateDisplayName(name), user.reload()]);
+      await user.getIdToken(true);
+      await _ensureUserDocument(user);
 
-    // 4. Create user document
-    await _ensureUserDocument(user);
-
-    return user;
+      return user;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    }
   }
 
   Future<User?> signIn(String email, String password) async {
@@ -64,7 +53,6 @@ class AuthService {
         password: password,
       );
 
-      // Ensure user document exists
       if (userCredential.user != null) {
         await _ensureUserDocument(userCredential.user!);
       }
@@ -75,44 +63,16 @@ class AuthService {
     }
   }
 
-  Future<void> updateUserProfile({String? name, String? photoUrl}) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not logged in');
-
-      // Update Auth profile
-      if (name != null) {
-        await user.updateDisplayName(name);
-      }
-      if (photoUrl != null) {
-        await user.updatePhotoURL(photoUrl);
-      }
-
-      // Update Firestore document
-      final updateData = <String, dynamic>{};
-      if (name != null) updateData['name'] = name;
-      if (photoUrl != null) updateData['photoURL'] = photoUrl;
-
-      if (updateData.isNotEmpty) {
-        await _firestore.collection('users').doc(user.uid).update(updateData);
-      }
-
-      await user.reload(); // Refresh auth user data
-    } catch (e) {
-      throw Exception('Failed to update profile: $e');
-    }
-  }
-
   Future<void> signOut() async {
     await _auth.signOut();
   }
 
-  Future<Map<String, dynamic>?> getUserData(String uid) async {
+  Future<bool> isAdmin(String uid) async {
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
-      return doc.data(); // Returns Map or null
+      return doc.data()?['isAdmin'] ?? false;
     } catch (e) {
-      return null; // Return null on error
+      return false;
     }
   }
 
