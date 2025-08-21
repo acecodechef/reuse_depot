@@ -8,6 +8,7 @@ import 'package:reuse_depot/services/auth_service.dart';
 import 'package:reuse_depot/screens/add_listing_screen.dart';
 import 'package:reuse_depot/screens/listing_detail_screen.dart';
 import 'package:reuse_depot/screens/conversations_list_screen.dart';
+import 'package:reuse_depot/screens/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -95,8 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-
-          // In HomeScreen's AppBar actions
           StreamBuilder<int>(
             stream: Provider.of<DatabaseService>(context).getTotalUnreadCount(
               Provider.of<AuthService>(context).currentUser!.uid,
@@ -107,12 +106,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.message),
+                    icon: const Icon(Icons.message),
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ConversationsListScreen(),
+                          builder: (context) => const ConversationsListScreen(),
                         ),
                       );
                     },
@@ -122,18 +121,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       right: 4,
                       top: 4,
                       child: Container(
-                        padding: EdgeInsets.all(4),
-                        decoration: BoxDecoration(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
-                        constraints: BoxConstraints(
+                        constraints: const BoxConstraints(
                           minWidth: 16,
                           minHeight: 16,
                         ),
                         child: Text(
                           unreadCount > 9 ? '9+' : unreadCount.toString(),
-                          style: TextStyle(color: Colors.white, fontSize: 10),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -142,6 +144,15 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+          // IconButton(
+          //   icon: const Icon(Icons.person),
+          //   onPressed: () {
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const ProfileScreen()),
+          //     );
+          //   },
+          // ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'signout') {
@@ -149,7 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   listen: false,
                 ).signOut();
-                Navigator.of(context).pushReplacementNamed('/login');
               }
             },
             itemBuilder: (BuildContext context) {
@@ -162,6 +172,48 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.green),
+              child: Text(
+                'Reuse Depot',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('My Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context);
+                Provider.of<AuthService>(context, listen: false).signOut();
+              },
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -202,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
+                      const Text(
                         'Filters',
                         style: TextStyle(
                           fontSize: 18,
@@ -211,23 +263,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       TextButton(
                         onPressed: _resetFilters,
-                        child: Text('Reset'),
+                        child: const Text('Reset'),
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     'Availability',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   SwitchListTile(
-                    title: Text('Available only'),
+                    title: const Text('Available only'),
                     value: _showAvailableOnly,
                     onChanged: (value) => _toggleAvailabilityFilter(),
                     contentPadding: EdgeInsets.zero,
                   ),
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     'Location',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -235,11 +287,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     controller: _locationFilterController,
                     decoration: InputDecoration(
                       hintText: 'Filter by location...',
-                      prefixIcon: Icon(Icons.location_on),
+                      prefixIcon: const Icon(Icons.location_on),
                       suffixIcon:
                           _locationFilter.isNotEmpty
                               ? IconButton(
-                                icon: Icon(Icons.clear),
+                                icon: const Icon(Icons.clear),
                                 onPressed: () {
                                   setState(() {
                                     _locationFilter = '';
@@ -255,8 +307,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       });
                     },
                   ),
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     'Categories',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -271,11 +323,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         }).toList(),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
-            Divider(),
+            const Divider(),
           ],
           Expanded(
             child: StreamBuilder<List<MaterialListing>>(
@@ -287,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.data!.isEmpty) {
+                if (snapshot.data == null || snapshot.data!.isEmpty) {
                   return const Center(child: Text('No materials available'));
                 }
 
@@ -340,13 +392,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.search_off, size: 48, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No results found'),
-                        SizedBox(height: 8),
+                        const Icon(
+                          Icons.search_off,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('No results found'),
+                        const SizedBox(height: 8),
                         TextButton(
                           onPressed: _resetFilters,
-                          child: Text('Reset filters'),
+                          child: const Text('Reset filters'),
                         ),
                       ],
                     ),
@@ -406,22 +462,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(material.description),
-                              SizedBox(height: 4),
+                              Text(
+                                material.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Icon(Icons.category, size: 14),
-                                  SizedBox(width: 4),
+                                  const Icon(Icons.category, size: 14),
+                                  const SizedBox(width: 4),
                                   Text(
                                     material.category,
-                                    style: TextStyle(fontSize: 12),
+                                    style: const TextStyle(fontSize: 12),
                                   ),
-                                  SizedBox(width: 8),
-                                  Icon(Icons.location_on, size: 14),
-                                  SizedBox(width: 4),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.location_on, size: 14),
+                                  const SizedBox(width: 4),
                                   Text(
                                     material.location,
-                                    style: TextStyle(fontSize: 12),
+                                    style: const TextStyle(fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -429,11 +489,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           trailing:
                               material.isAvailable
-                                  ? Icon(
+                                  ? const Icon(
                                     Icons.check_circle,
                                     color: Colors.green,
                                   )
-                                  : Icon(Icons.cancel, color: Colors.red),
+                                  : const Icon(Icons.cancel, color: Colors.red),
                         ),
                       ),
                     );

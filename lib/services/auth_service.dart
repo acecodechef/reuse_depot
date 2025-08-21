@@ -99,7 +99,6 @@ class AuthService {
     }
   }
 
-  // Add a method to update user profile
   Future<void> updateUserProfile({String? name, String? phone}) async {
     try {
       final user = _auth.currentUser;
@@ -118,6 +117,8 @@ class AuthService {
       throw 'Failed to update profile: $e';
     }
   }
+
+  // Add a method to update user profile
 
   String _handleAuthError(FirebaseAuthException e) {
     // First, check the error message for specific patterns
