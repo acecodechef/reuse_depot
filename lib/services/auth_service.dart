@@ -8,23 +8,17 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.userChanges();
 
-  Future<void> _ensureUserDocument(User user) async {
-    try {
-      final userDoc = _firestore.collection('users').doc(user.uid);
-      final isAdmin =
-          user.email == 'admin@reusedepot.com'; // Compare email here
+  Future<void> _ensureUserDocument(User user, {String? name}) async {
+    final userDoc = _firestore.collection('users').doc(user.uid);
+    final isAdmin = user.email == 'admin@reusedepot.com';
 
-      await userDoc.set({
-        'uid': user.uid,
-        'email': user.email,
-        'name': user.displayName ?? 'New User',
-        'createdAt': FieldValue.serverTimestamp(),
-        'isAdmin': isAdmin, // Store as boolean
-      }, SetOptions(merge: true)); // Merge to avoid overwriting
-    } catch (e) {
-      print('Error ensuring user document: $e');
-      rethrow;
-    }
+    await userDoc.set({
+      'uid': user.uid,
+      'email': user.email,
+      'name': name ?? user.displayName ?? 'New User',
+      'createdAt': FieldValue.serverTimestamp(),
+      'isAdmin': isAdmin,
+    }, SetOptions(merge: true));
   }
 
   Future<User?> register(String email, String password, String name) async {
@@ -33,12 +27,13 @@ class AuthService {
         email: email,
         password: password,
       );
+      print("ssssssssssss");
       final user = userCredential.user;
       if (user == null) throw Exception('User creation failed');
 
-      await Future.wait([user.updateDisplayName(name), user.reload()]);
+      // await Future.wait([user.updateDisplayName(name), user.reload()]);
       await user.getIdToken(true);
-      await _ensureUserDocument(user);
+      await _ensureUserDocument(user, name: name);
 
       return user;
     } on FirebaseAuthException catch (e) {
