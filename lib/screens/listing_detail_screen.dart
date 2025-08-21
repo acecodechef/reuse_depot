@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:reuse_depot/models/material.dart';
-
 import 'package:reuse_depot/screens/conversation_screen.dart';
 
 class ListingDetailScreen extends StatelessWidget {
@@ -13,49 +12,99 @@ class ListingDetailScreen extends StatelessWidget {
   const ListingDetailScreen({Key? key, required this.material})
     : super(key: key);
 
-  Future<void> _showContactOptions(BuildContext context) async {
+  Future<Map<String, dynamic>> _getSellerInfo() async {
     final db = FirebaseFirestore.instance;
-
-    // Get seller's name
     final sellerDoc = await db.collection('users').doc(material.userId).get();
-    final sellerName = sellerDoc.data()?['name'] ?? 'Seller';
+    return sellerDoc.data() ?? {};
+  }
+
+  Future<void> _showContactOptions(BuildContext context) async {
+    final sellerInfo = await _getSellerInfo();
+    final sellerName = sellerInfo['name'] ?? 'Seller';
+    final sellerEmail = sellerInfo['email'] ?? '';
+    final sellerPhone = sellerInfo['phone'] ?? '';
 
     await showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder:
           (context) => Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Contact $sellerName',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
+
+                // Email Option
+                if (sellerEmail.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.email, color: Colors.blue),
+                    title: Text('Email: $sellerEmail'),
+                    subtitle: const Text('Send an email'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _contactViaEmail(context, sellerEmail);
+                    },
+                  ),
+
+                if (sellerEmail.isEmpty)
+                  const ListTile(
+                    leading: Icon(Icons.email, color: Colors.grey),
+                    title: Text('Email not provided'),
+                    subtitle: Text('Seller hasn\'t shared their email'),
+                  ),
+
+                // Phone Option
+                if (sellerPhone.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.phone, color: Colors.green),
+                    title: Text('Call: $sellerPhone'),
+                    subtitle: const Text('Make a phone call'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _contactViaPhone(context, sellerPhone);
+                    },
+                  ),
+
+                if (sellerPhone.isEmpty)
+                  const ListTile(
+                    leading: Icon(Icons.phone, color: Colors.grey),
+                    title: Text('Phone not provided'),
+                    subtitle: Text('Seller hasn\'t shared their phone number'),
+                  ),
+
+                // Message Option
                 ListTile(
-                  leading: Icon(Icons.email),
-                  title: Text('Send Email'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _contactViaEmail(context);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.phone),
-                  title: Text('Call Seller'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _contactViaPhone(context);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.message),
-                  title: Text('Message in App'),
+                  leading: const Icon(Icons.message, color: Colors.purple),
+                  title: const Text('Message in App'),
+                  subtitle: const Text('Chat within the app'),
                   onTap: () {
                     Navigator.pop(context);
                     _contactViaMessage(context, sellerName);
                   },
+                ),
+
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                    foregroundColor: Colors.black87,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Close'),
                 ),
               ],
             ),
@@ -63,8 +112,8 @@ class ListingDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _contactViaEmail(BuildContext context) async {
-    final url = 'mailto:seller@example.com?subject=Regarding ${material.title}';
+  Future<void> _contactViaEmail(BuildContext context, String email) async {
+    final url = 'mailto:$email?subject=Regarding ${material.title}';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     } else {
@@ -74,8 +123,8 @@ class ListingDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _contactViaPhone(BuildContext context) async {
-    final url = 'tel:+1234567890';
+  Future<void> _contactViaPhone(BuildContext context, String phone) async {
+    final url = 'tel:$phone';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     } else {
@@ -188,9 +237,17 @@ class ListingDetailScreen extends StatelessWidget {
           child: ElevatedButton(
             onPressed: () => _showContactOptions(context),
             style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Contact Seller'),
+            child: const Text(
+              'Contact Seller',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ),
