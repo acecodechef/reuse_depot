@@ -210,7 +210,7 @@ class _AuthScreenState extends State<AuthScreen> {
               // Header
               const SizedBox(height: 40),
               Text(
-                _isLogin ? 'Welcome Back' : 'Create Account',
+                _isLogin ? 'Welcome Reuse Depot' : 'Create Account',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
